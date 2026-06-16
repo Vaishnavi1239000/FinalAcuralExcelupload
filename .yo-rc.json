@@ -1,0 +1,19 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "useGulp": false,
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.16.0",
+    "sdksVersions": {},
+    "version": "1.22.2",
+    "libraryName": "exceluploaddata",
+    "libraryId": "ef815728-0f96-46ff-9428-05bc97c448b2",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "Exceluploaddata",
+    "solutionShortDescription": "Exceluploaddata description",
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "componentType": "webpart"
+  }
+}

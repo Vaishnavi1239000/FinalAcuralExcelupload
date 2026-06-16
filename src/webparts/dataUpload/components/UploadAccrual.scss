@@ -1,0 +1,110 @@
+.pageContainer {
+  max-width: 1100px;
+  margin: 0 auto;   /* centers the content */
+  padding: 30px;
+  background: #f5f6f8;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #fff;
+  padding: 25px;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  margin-bottom: 30px;
+}
+
+.sectionTitle {
+  margin-bottom: 20px;
+  color: #3f6db5;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+}
+
+.downloadSection {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.warningText {
+  color: red;
+  margin-top: 10px;
+}
+
+.primaryBtn {
+  background: #4f8cc9;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.uploadBtnContainer {
+  text-align: center;
+  margin-top: 30px;
+}
+.Canvas{
+    display: block !important;
+}
+#workbenchPageContent{
+        max-width: 100% !important;
+}
+.c_6RhDL_hHQBj,
+.CanvasZone {
+    padding:0 !important;
+}
+.wid25{
+  width: 20% !important;
+  margin-bottom: 10px;
+}
+
+.commbtn{
+  border-radius: 5px;
+    width: 100px;
+    padding: 5px;
+    border: none;
+    margin-right: 15px;
+}
+.table-box th,
+.table-box td{
+  border: 1px solid #000;
+    white-space: nowrap;
+    font-weight: 500;
+    padding: 5px;
+}
+.table-box th{
+  text-align: center;
+}
+.primaryBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: blur(0.5px);
+}
+.primaryBtn{
+  margin-right: 15px;
+  margin-top: 15px;
+}

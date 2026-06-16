@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "exceluploaddata-client-side-solution",
+    "id": "ef815728-0f96-46ff-9428-05bc97c448b2",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.22.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Exceluploaddata description"
+      },
+      "longDescription": {
+        "default": "Exceluploaddata description"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "exceluploaddata Feature",
+        "description": "The feature that activates elements of the exceluploaddata solution.",
+        "id": "a3db4988-0db8-4199-8298-306cd220c8ae",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/exceluploaddata.sppkg"
+  }
+}
