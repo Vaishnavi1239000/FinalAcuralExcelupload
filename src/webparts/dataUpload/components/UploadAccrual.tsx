@@ -10,6 +10,9 @@ import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import * as XLSX from "xlsx";
 
+import edit from "../../dataUpload/assets/Pencil.png";
+import del from "../../dataUpload/assets/delete.png";
+
 import { IDataUploadProps } from "./IDataUploadProps";
 
 SPComponentLoader.loadCss(
@@ -20,7 +23,10 @@ export default function UploadAccrual() {
   const [file, setFile] = React.useState<File | null>(null);
   const [selectedUser, setSelectedUser] = React.useState<any>(null);
   const [selectedRows, setSelectedRows] = React.useState<number[]>([]);
+  const [editingRow, setEditingRow] = React.useState<number | null>(null);
   const [excelData, setExcelData] = React.useState<any[]>([]);
+  const [submittedData, setSubmittedData] = React.useState<any[]>([]);
+  const [duplicateData, setDuplicateData] = React.useState<any[]>([]);
   const [data, setData] = React.useState<any[]>([]);
   const [filteredData, setFilteredData] = React.useState<any[]>([]);
   const [isSearched, setIsSearched] = React.useState(false);
@@ -42,17 +48,45 @@ export default function UploadAccrual() {
       setSelectedRows([]);
     }
   };
+
+  const handleCellChange = (rowIndex: number, field: string, value: string) => {
+    const updatedData = [...excelData];
+
+    updatedData[rowIndex] = {
+      ...updatedData[rowIndex],
+      [field]: value,
+    };
+
+    setExcelData(updatedData);
+  };
+
+  const loadDuplicateData = async () => {
+    const existingItems = await sp.web.lists
+      .getByTitle("AccrualSheetList")
+      .items();
+
+    console.log(existingItems);
+  };
+  const saveRow = () => {
+    setEditingRow(null);
+    alert("Row updated successfully");
+  };
+
+  const deleteRow = (index: number) => {
+    if (!window.confirm("Delete this row?")) return;
+
+    const updatedData = excelData.filter((_, i) => i !== index);
+
+    setExcelData(updatedData);
+  };
+
   const deleteSelectedRows = () => {
     if (selectedRows.length === 0) {
-      alert("Please select rows to delete");
+      alert("Please select rows");
       return;
     }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${selectedRows.length} row(s)?`,
-    );
-
-    if (!confirmDelete) return;
+    if (!window.confirm(`Delete ${selectedRows.length} selected rows?`)) return;
 
     const updatedData = excelData.filter(
       (_, index) => !selectedRows.includes(index),
@@ -61,7 +95,7 @@ export default function UploadAccrual() {
     setExcelData(updatedData);
     setSelectedRows([]);
 
-    alert("Selected rows deleted successfully");
+    alert("Rows deleted successfully");
   };
 
   const requiredColumns = [
@@ -365,164 +399,361 @@ export default function UploadAccrual() {
   //     alert("Error saving data");
   //   }
   // };
+  // const submitData = async () => {
+
+  //   debugger;
+  //   if (excelData.length === 0) {
+  //     alert("No data to submit");
+  //     return;
+  //   }
+
+  //   const getMonthNumber = (monthName: string) => {
+  //     const months: any = {
+  //       january: 0,
+  //       february: 1,
+  //       march: 2,
+  //       april: 3,
+  //       may: 4,
+  //       june: 5,
+  //       july: 6,
+  //       august: 7,
+  //       september: 8,
+  //       october: 9,
+  //       november: 10,
+  //       december: 11,
+  //     };
+  //     return months[monthName.trim().toLowerCase()];
+  //   };
+
+  //   const capitalizeMonth = (month: string) => {
+  //     const m = month.trim().toLowerCase();
+  //     return m.charAt(0).toUpperCase() + m.slice(1);
+  //   };
+
+  //   const today = new Date();
+  //   const currentMonth = today.getMonth();
+  //   const currentDate = today.getDate();
+
+  //   let errorList: any[] = [];
+  //   let validRows: any[] = [];
+  //   let invalidRows: any[] = [];
+
+  //   for (let i = 0; i < excelData.length; i++) {
+  //     const row = excelData[i];
+  //     const rowNumber = i + 2;
+
+  //     const username = String(row["UserName "] || "").trim();
+  //     const amount = Number(row["Amount "] || 0);
+
+  //     const expenseMonthRaw = String(row["Expense Month "] || "");
+  //     const expenseMonthStr = capitalizeMonth(expenseMonthRaw);
+  //     const expMonth = getMonthNumber(expenseMonthStr);
+
+  //     let rowErrors: string[] = [];
+
+  //     // ✅ Required fields validation
+  //     for (const col of requiredColumns) {
+  //       if (!row[col] || row[col].toString().trim() === "") {
+  //         rowErrors.push(`${col} is required`);
+  //       }
+  //     }
+
+  //     // ✅ Amount validation
+  //     if (isNaN(amount)) {
+  //       rowErrors.push("Amount must be numeric");
+  //     }
+
+  //     if (amount < 0) {
+  //       rowErrors.push("Amount cannot be negative");
+  //     }
+
+  //     // ✅ Month validation
+  //     let isValidMonth = false;
+
+  //     if (expMonth !== undefined) {
+  //       if (expMonth === currentMonth) {
+  //         isValidMonth = true;
+  //       }
+
+  //       const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+
+  //       if (expMonth === prevMonth && currentDate <= 5) {
+  //         isValidMonth = true;
+  //       }
+
+  //       if (expMonth > currentMonth) {
+  //         isValidMonth = true;
+  //       }
+  //     }
+
+  //     if (!isValidMonth) {
+  //       rowErrors.push("Invalid Expense Month (past month not allowed)");
+  //     }
+
+  //     // ❌ If errors → push to error list + invalid grid
+  //     if (rowErrors.length > 0) {
+  //       errorList.push({
+  //         row: rowNumber,
+  //         data: {
+  //           Username: username,
+  //           Department: row["Department "] || "",
+  //           VendorName: row["Vendor Name"] || "",
+  //           VendorCode: row["Vendor Code "] || "",
+  //           PONumber: row["PO Number"] || "",
+  //           GLCode: row["GL Code "] || "",
+  //           GLDescription: row["GL Description "] || "",
+  //           EmployeeCostCenter: row["Employee Cost Center "] || "",
+  //           EmployeeCostCenterName: row["Employee Cost Center Name "] || "",
+  //           Amount: amount,
+  //           ExpenseMonth: expenseMonthStr,
+  //           Remarks: row["Remarks (if any)"] || "",
+  //         },
+  //         errors: rowErrors,
+  //       });
+  //     } else {
+  //       validRows.push({
+  //         Title: username,
+  //         Username: username,
+  //         Department: String(row["Department "] || ""),
+  //         VendorName: String(row["Vendor Name"] || ""),
+  //         VendorCode: String(row["Vendor Code "] || ""),
+  //         PONumber: String(row["PO Number"] || ""),
+  //         GLCode: String(row["GL Code "] || ""),
+  //         GLDescription: String(row["GL Description "] || ""),
+  //         EmployeeCostCenter: String(row["Employee Cost Center "] || ""),
+  //         EmployeeCostCenterName: String(
+  //           row["Employee Cost Center Name "] || "",
+  //         ),
+  //         Amount: amount,
+  //         ExpenseMonth: expenseMonthStr,
+  //         Remarks: String(row["Remarks (if any)"] || ""),
+  //         Status: "Pending",
+  //       });
+  //     }
+  //   }
+
+  //     debugger;
+    
+  //   // ✅ Save VALID rows
+  //   try {
+
+      
+  //     for (const item of validRows) {
+  //       await sp.web.lists.getByTitle("AccrualSheetList").items.add(item);
+
+        
+  //     }
+  //   } catch (error) {
+  //     console.log("Save error:", error);
+  //     alert("Error saving valid records");
+  //   }
+
+  //   // ✅ Update UI
+  //   setErrors(errorList);
+
+  //   if (invalidRows.length > 0) {
+  //     setData(invalidRows);
+  //     setFilteredData(invalidRows);
+  //     setIsSearched(true);
+  //   } else {
+  //     setData([]);
+  //     setFilteredData([]);
+  //     setIsSearched(false);
+  //   }
+
+  //   // ✅ Final Message
+  //   if (validRows.length > 0 && errorList.length > 0) {
+  //     alert(
+  //       `✅ ${validRows.length} records saved\n❌ ${errorList.length} records failed (see below)`,
+  //     );
+  //   } else if (validRows.length > 0) {
+  //     alert("All records saved successfully ✅");
+
+  //   } else {
+  //     alert("No valid data to save ❌");
+  //   }
+
+  //   setExcelData([]);
+  //   setFile(null);
+  // };
+
   const submitData = async () => {
-    if (excelData.length === 0) {
-      alert("No data to submit");
-      return;
+  if (excelData.length === 0) {
+    alert("No data to submit");
+    return;
+  }
+
+  const getMonthNumber = (monthName: string) => {
+    const months: any = {
+      january: 0,
+      february: 1,
+      march: 2,
+      april: 3,
+      may: 4,
+      june: 5,
+      july: 6,
+      august: 7,
+      september: 8,
+      october: 9,
+      november: 10,
+      december: 11,
+    };
+
+    return months[monthName.trim().toLowerCase()];
+  };
+
+  const capitalizeMonth = (month: string) => {
+    const m = month.trim().toLowerCase();
+    return m.charAt(0).toUpperCase() + m.slice(1);
+  };
+
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentDate = today.getDate();
+
+  let errorList: any[] = [];
+  let validRows: any[] = [];
+
+  for (let i = 0; i < excelData.length; i++) {
+    const row = excelData[i];
+    const rowNumber = i + 2;
+
+    const username = String(row["UserName "] || "").trim();
+    const amount = Number(row["Amount "] || 0);
+
+    const expenseMonthRaw = String(row["Expense Month "] || "");
+    const expenseMonthStr = capitalizeMonth(expenseMonthRaw);
+
+    const expMonth = getMonthNumber(expenseMonthStr);
+
+    let rowErrors: string[] = [];
+
+    // Required Validation
+    for (const col of requiredColumns) {
+      if (!row[col] || row[col].toString().trim() === "") {
+        rowErrors.push(`${col} is required`);
+      }
     }
 
-    const getMonthNumber = (monthName: string) => {
-      const months: any = {
-        january: 0,
-        february: 1,
-        march: 2,
-        april: 3,
-        may: 4,
-        june: 5,
-        july: 6,
-        august: 7,
-        september: 8,
-        october: 9,
-        november: 10,
-        december: 11,
-      };
-      return months[monthName.trim().toLowerCase()];
-    };
+    // Amount Validation
+    if (isNaN(amount)) {
+      rowErrors.push("Amount must be numeric");
+    }
 
-    const capitalizeMonth = (month: string) => {
-      const m = month.trim().toLowerCase();
-      return m.charAt(0).toUpperCase() + m.slice(1);
-    };
+    if (amount < 0) {
+      rowErrors.push("Amount cannot be negative");
+    }
 
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentDate = today.getDate();
+    // Month Validation
+    let isValidMonth = false;
 
-    let errorList: any[] = [];
-    let validRows: any[] = [];
-    let invalidRows: any[] = [];
-
-    for (let i = 0; i < excelData.length; i++) {
-      const row = excelData[i];
-      const rowNumber = i + 2;
-
-      const username = String(row["UserName "] || "").trim();
-      const amount = Number(row["Amount "] || 0);
-
-      const expenseMonthRaw = String(row["Expense Month "] || "");
-      const expenseMonthStr = capitalizeMonth(expenseMonthRaw);
-      const expMonth = getMonthNumber(expenseMonthStr);
-
-      let rowErrors: string[] = [];
-
-      // ✅ Required fields validation
-      for (const col of requiredColumns) {
-        if (!row[col] || row[col].toString().trim() === "") {
-          rowErrors.push(`${col} is required`);
-        }
+    if (expMonth !== undefined) {
+      if (expMonth === currentMonth) {
+        isValidMonth = true;
       }
 
-      // ✅ Amount validation
-      if (isNaN(amount)) {
-        rowErrors.push("Amount must be numeric");
+      const prevMonth =
+        currentMonth === 0 ? 11 : currentMonth - 1;
+
+      if (expMonth === prevMonth && currentDate <= 5) {
+        isValidMonth = true;
       }
 
-      if (amount < 0) {
-        rowErrors.push("Amount cannot be negative");
+      if (expMonth > currentMonth) {
+        isValidMonth = true;
       }
+    }
 
-      // ✅ Month validation
-      let isValidMonth = false;
+    if (!isValidMonth) {
+      rowErrors.push(
+        "Invalid Expense Month (past month not allowed)"
+      );
+    }
 
-      if (expMonth !== undefined) {
-        if (expMonth === currentMonth) {
-          isValidMonth = true;
-        }
+    if (rowErrors.length > 0) {
+      errorList.push({
+        row: rowNumber,
+        data: row,
+        errors: rowErrors,
+      });
+    } else {
+      validRows.push({
+        Title: username,
+        Username: username,
+        Department: String(row["Department "] || ""),
+        VendorName: String(row["Vendor Name"] || ""),
+        VendorCode: String(row["Vendor Code "] || ""),
+        PONumber: String(row["PO Number"] || ""),
+        GLCode: String(row["GL Code "] || ""),
+        GLDescription: String(row["GL Description "] || ""),
+        EmployeeCostCenter: String(
+          row["Employee Cost Center "] || ""
+        ),
+        EmployeeCostCenterName: String(
+          row["Employee Cost Center Name "] || ""
+        ),
+        Amount: amount,
+        ExpenseMonth: expenseMonthStr,
+        Remarks: String(row["Remarks (if any)"] || ""),
+        Status: "Pending",
+      });
+    }
+  }
 
-        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  try {
+    const displayData: any[] = [];
 
-        if (expMonth === prevMonth && currentDate <= 5) {
-          isValidMonth = true;
-        }
+    // For duplicate check inside Excel
+    const duplicateKeys = new Set<string>();
 
-        if (expMonth > currentMonth) {
-          isValidMonth = true;
-        }
-      }
+    for (const item of validRows) {
 
-      if (!isValidMonth) {
-        rowErrors.push("Invalid Expense Month (past month not allowed)");
-      }
+      const key =
+        `${item.Username}-${item.VendorCode}-${item.PONumber}`;
 
-      // ❌ If errors → push to error list + invalid grid
-      if (rowErrors.length > 0) {
-        errorList.push({
-          row: rowNumber,
-          data: {
-            Username: username,
-            Department: row["Department "] || "",
-            VendorName: row["Vendor Name"] || "",
-            VendorCode: row["Vendor Code "] || "",
-            PONumber: row["PO Number"] || "",
-            GLCode: row["GL Code "] || "",
-            GLDescription: row["GL Description "] || "",
-            EmployeeCostCenter: row["Employee Cost Center "] || "",
-            EmployeeCostCenterName: row["Employee Cost Center Name "] || "",
-            Amount: amount,
-            ExpenseMonth: expenseMonthStr,
-            Remarks: row["Remarks (if any)"] || "",
-          },
-          errors: rowErrors,
-        });
+      let isDuplicate = false;
+
+      // Duplicate in current Excel
+      if (duplicateKeys.has(key)) {
+        isDuplicate = true;
       } else {
-        validRows.push({
-          Title: username,
-          Username: username,
-          Department: String(row["Department "] || ""),
-          VendorName: String(row["Vendor Name"] || ""),
-          VendorCode: String(row["Vendor Code "] || ""),
-          PONumber: String(row["PO Number"] || ""),
-          GLCode: String(row["GL Code "] || ""),
-          GLDescription: String(row["GL Description "] || ""),
-          EmployeeCostCenter: String(row["Employee Cost Center "] || ""),
-          EmployeeCostCenterName: String(
-            row["Employee Cost Center Name "] || "",
-          ),
-          Amount: amount,
-          ExpenseMonth: expenseMonthStr,
-          Remarks: String(row["Remarks (if any)"] || ""),
-          Status: "Pending",
-        });
+        duplicateKeys.add(key);
       }
+
+      // Duplicate in SharePoint List
+      const existingItems = await sp.web.lists
+        .getByTitle("AccrualSheetList")
+        .items
+        .filter(
+          `Username eq '${item.Username.replace(/'/g, "''")}'
+          and VendorCode eq '${item.VendorCode.replace(/'/g, "''")}'
+          and PONumber eq '${item.PONumber.replace(/'/g, "''")}'`
+        )();
+
+      if (existingItems.length > 0) {
+        isDuplicate = true;
+      }
+
+      // Save record
+      await sp.web.lists
+        .getByTitle("AccrualSheetList")
+        .items.add(item);
+
+      displayData.push({
+        ...item,
+        isDuplicate,
+      });
     }
 
-    // ✅ Save VALID rows
-    try {
-      for (const item of validRows) {
-        await sp.web.lists.getByTitle("AccrualSheetList").items.add(item);
-      }
-    } catch (error) {
-      console.log("Save error:", error);
-      alert("Error saving valid records");
-    }
+    console.log("Submitted Data", displayData);
 
-    // ✅ Update UI
+    setSubmittedData(displayData);
+
     setErrors(errorList);
 
-    if (invalidRows.length > 0) {
-      setData(invalidRows);
-      setFilteredData(invalidRows);
-      setIsSearched(true);
-    } else {
-      setData([]);
-      setFilteredData([]);
-      setIsSearched(false);
-    }
-
-    // ✅ Final Message
     if (validRows.length > 0 && errorList.length > 0) {
       alert(
-        `✅ ${validRows.length} records saved\n❌ ${errorList.length} records failed (see below)`,
+        `✅ ${validRows.length} records saved\n❌ ${errorList.length} records failed`
       );
     } else if (validRows.length > 0) {
       alert("All records saved successfully ✅");
@@ -532,8 +763,11 @@ export default function UploadAccrual() {
 
     setExcelData([]);
     setFile(null);
-  };
- 
+  } catch (error) {
+    console.log("Save Error", error);
+    alert("Error saving records");
+  }
+};
   const handleExit = () => {
     //https://isriglobal.sharepoint.com/sites/SonaFinance/_layouts/workbench.aspx
     window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
@@ -647,7 +881,9 @@ export default function UploadAccrual() {
       console.log("Upload error:", error);
     }
   };
-
+  React.useEffect(() => {
+    void loadDuplicateData();
+  }, []);
   return (
     <div>
       <div className="header">
@@ -785,14 +1021,9 @@ export default function UploadAccrual() {
         </div>
       </div>
       {excelData.length > 0 && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: "30px",
-          }}
-        >
-          <thead>
+        <div style={{ overflowX: "auto" }}>
+          <table className="Custom-table">
+            {/* <thead>
             <tr>
               {Object.keys(excelData[0]).map((key) => (
                 <th
@@ -825,8 +1056,85 @@ export default function UploadAccrual() {
                 ))}
               </tr>
             ))}
-          </tbody>
-        </table>
+          </tbody> */}
+
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={
+                      excelData.length > 0 &&
+                      selectedRows.length === excelData.length
+                    }
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                  />
+                </th>
+
+                {Object.keys(excelData[0]).map((key) => (
+                  <th key={key}>{key}</th>
+                ))}
+
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {excelData.map((row: any, index: number) => (
+                <tr key={index}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.includes(index)}
+                      onChange={() => handleRowSelect(index)}
+                    />
+                  </td>
+
+                  {Object.keys(row).map((key) => (
+                    <td key={key}>
+                      {editingRow === index ? (
+                        <input
+                          value={row[key]}
+                          onChange={(e) =>
+                            handleCellChange(index, key, e.target.value)
+                          }
+                        />
+                      ) : (
+                        row[key]
+                      )}
+                    </td>
+                  ))}
+
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "5px",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {editingRow === index ? (
+                        <button onClick={() => saveRow()}>Save</button>
+                      ) : (
+                        <a onClick={() => setEditingRow(index)}>
+                          <img src={edit} width={15} height={15} />
+                        </a>
+                      )}
+
+                      <a
+                        onClick={() => deleteRow(index)}
+                        style={{ marginLeft: "5px" }}
+                      >
+                        <img src={del} width={15} height={15} />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {errors.length > 0 && (
         <div style={{ marginTop: "30px" }}>
@@ -843,15 +1151,14 @@ export default function UploadAccrual() {
               <tr>
                 <th>Row</th>
                 <th>
-      <input
-        type="checkbox"
-        checked={
-          errors.length > 0 &&
-          selectedRows.length === errors.length
-        }
-        onChange={(e) => handleSelectAll(e.target.checked)}
-      />
-    </th>
+                  <input
+                    type="checkbox"
+                    checked={
+                      errors.length > 0 && selectedRows.length === errors.length
+                    }
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                  />
+                </th>
                 <th>User</th>
                 <th>Department</th>
                 <th>Vendor</th>
@@ -865,17 +1172,16 @@ export default function UploadAccrual() {
             <tbody>
               {errors.map((err, index) => (
                 <tr key={index}>
-                  
-   <td>
-        <input
-          type="checkbox"
-          checked={selectedRows.includes(index)}
-          onChange={() => handleRowSelect(index)}
-        />
-      </td>
-
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.includes(index)}
+                      onChange={() => handleRowSelect(index)}
+                    />
+                  </td>
 
                   <td>{err.row}</td>
+
                   <td>{err.data.Username}</td>
                   <td>{err.data.Department}</td>
                   <td>{err.data.VendorName}</td>
@@ -891,13 +1197,103 @@ export default function UploadAccrual() {
         </div>
       )}
 
-      <button
-        className="sendback-btn"
-        onClick={deleteSelectedRows}
-        disabled={selectedRows.length === 0}
-      >
-        Delete Selected
-      </button>
+      {excelData.length > 0 && (
+        <button
+          className="sendback-btn"
+          onClick={deleteSelectedRows}
+          disabled={selectedRows.length === 0}
+        >
+          Delete Selected
+        </button>
+      )}
+
+    {submittedData.length > 0 && (
+  <div style={{ marginTop: "20px" }}>
+    <h3>Submitted Records</h3>
+
+    <table className="table table-bordered">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Vendor</th>
+          <th>PO Number</th>
+          <th>Amount</th>
+          <th>Month</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {submittedData.map((row, index) => (
+          <tr
+            key={index}
+            style={{
+              backgroundColor: row.isDuplicate
+                ? "#ffe6e6"
+                : "white",
+            }}
+          >
+            <td
+              style={{
+                color: row.isDuplicate ? "red" : "black",
+                fontWeight: row.isDuplicate ? "bold" : "normal",
+              }}
+            >
+              {row.Username}
+            </td>
+
+            <td
+              style={{
+                color: row.isDuplicate ? "red" : "black",
+                fontWeight: row.isDuplicate ? "bold" : "normal",
+              }}
+            >
+              {row.VendorName}
+            </td>
+
+            <td
+              style={{
+                color: row.isDuplicate ? "red" : "black",
+                fontWeight: row.isDuplicate ? "bold" : "normal",
+              }}
+            >
+              {row.PONumber}
+            </td>
+
+            <td
+              style={{
+                color: row.isDuplicate ? "red" : "black",
+                fontWeight: row.isDuplicate ? "bold" : "normal",
+              }}
+            >
+              {row.Amount}
+            </td>
+
+            <td
+              style={{
+                color: row.isDuplicate ? "red" : "black",
+                fontWeight: row.isDuplicate ? "bold" : "normal",
+              }}
+            >
+              {row.ExpenseMonth}
+            </td>
+
+            <td
+              style={{
+                color: row.isDuplicate ? "red" : "green",
+                fontWeight: "bold",
+              }}
+            >
+              {row.isDuplicate
+                ? "Duplicate Record"
+                : "New Record"}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
       <div
         style={{
           display: "flex",
