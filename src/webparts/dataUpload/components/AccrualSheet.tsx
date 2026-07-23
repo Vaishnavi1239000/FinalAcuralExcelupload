@@ -75,8 +75,8 @@ export default function AccrualSheet(props: IDataUploadProps) {
   }
 
   if (page === "upload") {
-    return <UploadAccrual />;
-  }
+  return <UploadAccrual {...props} />;
+}
 
   return (
     <div className="container-fluid">

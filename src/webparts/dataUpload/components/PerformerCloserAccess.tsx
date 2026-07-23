@@ -47,8 +47,8 @@ const [isSaving, setIsSaving] = React.useState(false);
   };
   const handleExit = () => {
     //https://isriglobal.sharepoint.com/sites/SonaFinance/_layouts/workbench.aspx
-   window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
-    //window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
+  // window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
+    window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
   };
   // ✅ Fetch data
   const getHistoryData = async () => {

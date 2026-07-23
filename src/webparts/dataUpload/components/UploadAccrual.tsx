@@ -9,6 +9,7 @@ import "@pnp/sp/items";
 import "@pnp/sp/files";
 import "@pnp/sp/folders";
 import * as XLSX from "xlsx";
+import { SPHttpClient, ISPHttpClientOptions } from "@microsoft/sp-http";
 
 import edit from "../../dataUpload/assets/Pencil.png";
 import del from "../../dataUpload/assets/delete.png";
@@ -19,7 +20,7 @@ SPComponentLoader.loadCss(
   "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
 );
 
-export default function UploadAccrual() {
+export default function UploadAccrual(props: IDataUploadProps) {
   const [file, setFile] = React.useState<File | null>(null);
   const [selectedUser, setSelectedUser] = React.useState<any>(null);
   const [selectedRows, setSelectedRows] = React.useState<number[]>([]);
@@ -152,43 +153,303 @@ export default function UploadAccrual() {
     e.target.value = "";
   };
 
-  const getLoggedInUser = async () => {
+  const ensureUser = async (email: string): Promise<number> => {
+    if (!email) return 0;
+
     try {
-      // get logged in user
-      debugger;
-      const currentUser = await sp.web.currentUser();
+      const webUrl = props.context.pageContext.web.absoluteUrl;
 
-      const email = currentUser.Email;
+      const response = await props.context.spHttpClient.post(
+        `${webUrl}/_api/web/ensureuser`,
+        SPHttpClient.configurations.v1,
+        {
+          headers: {
+            Accept: "application/json;odata=nometadata",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            logonName: email,
+          }),
+        },
+      );
 
-      const user = await sp.web.lists
-        .getByTitle("EmployeeMaster")
-        .items.select(
-          "EmployeeCode",
-          "EmployeeName",
-          "Division",
-          "Location",
-          "EmployeeEmail",
-          "ReportingManager/Title",
-          "HOD/Title",
-          "ContactNo",
-          "EmployeeStatus",
-        )
-        .expand("ReportingManager", "HOD")
-        .filter(`EmployeeEmail eq '${email}'`)
-        .top(1)();
+      if (!response.ok) {
+        console.log("ensureUser failed for:", email);
 
-      if (user.length > 0) {
-        setEmployee(user[0]);
+        return 0;
       }
 
-      console.log(user);
+      const data = await response.json();
+
+      return data.Id || 0;
     } catch (error) {
-      console.log("Error fetching user:", error);
-      alert(error);
+      console.log("ensureUser error:", email, error);
+
+      return 0;
     }
   };
+  const getuserData = async () => {
+    debugger;
+    try {
+      const toTitleCase = (str: string): string => {
+        if (!str) return "";
+
+        return str
+          .toLowerCase()
+          .split(" ")
+          .filter(Boolean)
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      };
+
+      const cleanLocationForDisplay = (location: string): string => {
+        if (!location) return "N/A";
+
+        return location.replace(/^re\s+/i, "").trim();
+      };
+
+      const fetchPage = async (pageNumber: number) => {
+        debugger;
+        const username = "0le867nyvalvfo249e6sj4ri";
+        const password =
+          "2mpvr7r19amf7o01hr0qncr861hmtsb7o9ap51hwar72405atj3y73mndkmokg5i";
+
+        const auth = btoa(`${username}:${password}`);
+
+        const responsesevices = await fetch(
+          "https://mservices.zinghr.com/etl/api/v2/Auth/GenerateJWTToken?apiPermission=GEMD",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Basic ${auth}`,
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        const ServicedataToken = await responsesevices.json();
+        console.log(ServicedataToken.data);
+
+        const response = await fetch(
+          "https://mservices.zinghr.com/etl/api/v2/Employee/GetEmployeeDetails",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${ServicedataToken.data}`,
+              ClientSecret:
+                "2mpvr7r19amf7o01hr0qncr861hmtsb7o9ap51hwar72405atj3y73mndkmokg5i",
+            },
+            body: JSON.stringify({
+              PageSize: 500,
+              PageNumber: pageNumber,
+            }),
+          },
+        );
+        // const data = await response.json();
+        // console.log("Employee data:", data);
+        if (!response.ok) {
+          throw new Error("Failed to fetch employee data");
+        }
+
+        return response.json();
+      };
+
+      // ✅ Current User Email
+      const userEmail = props.context.pageContext.user.email.toLowerCase();
+
+      let item = null;
+      let page = 1;
+
+      // ✅ Paging Loop
+      while (true) {
+        const res = await fetchPage(page);
+
+        const employees = res?.data?.employees || [];
+
+        item = employees.find((x: any) => x.email?.toLowerCase() === userEmail);
+
+        // ✅ Stop when found
+        if (item) {
+          break;
+        }
+
+        // ✅ Stop if last page
+        if (employees.length < 500) {
+          break;
+        }
+
+        page++;
+      }
+
+      if (!item) {
+        console.log("Employee not found");
+        return;
+      }
+
+      // ✅ Location
+      const locationAttr = (item.attributes || []).find(
+        (a: any) => a.attributeTypeDescription === "Location",
+      );
+
+      // ✅ Department
+      const departmentAttr = (item.attributes || []).find(
+        (a: any) => a.attributeTypeDescription?.toLowerCase() === "department",
+      );
+
+      const hodEmailAttr = (item.attributes || []).find(
+        (a: any) => a.attributeTypeDescription?.toLowerCase() === "hod_email",
+      );
+
+      const hodNameAttr = (item.attributes || []).find(
+        (a: any) => a.attributeTypeDescription?.toLowerCase() === "hod name",
+      );
+
+      const hodCodeAttr = (item.attributes || []).find(
+        (a: any) => a.attributeTypeDescription?.toLowerCase() === "hod_code",
+      );
+
+      // ✅ Ensure Users
+      let employeeUserId = 0;
+      let rmUserId = 0;
+      let hodUserId = 0;
+
+      try {
+        if (item.email) {
+          employeeUserId = await ensureUser(item.email);
+        }
+
+        if (item.reportingManagerEmail) {
+          rmUserId = await ensureUser(item.reportingManagerEmail);
+        }
+
+        if (hodEmailAttr?.attributeTypeUnitDescription) {
+          hodUserId = await ensureUser(
+            hodEmailAttr.attributeTypeUnitDescription,
+          );
+        }
+      } catch (e) {
+        console.log("ensureUser error", e);
+      }
+      debugger;
+      console.log(item);
+      // ✅ Set Employee State
+      setEmployee({
+        EmployeeCode: item.employeeCode || "",
+
+        EmployeeName: toTitleCase(item.employeeName || ""),
+
+        userEmail: toTitleCase(item.email || ""),
+
+        Division: departmentAttr?.attributeTypeUnitDescription || "",
+
+        Location: cleanLocationForDisplay(
+          locationAttr?.attributeTypeUnitDescription || "",
+        ),
+
+        RM: item.reportingManagerName || "",
+
+        HOD: hodNameAttr?.attributeTypeUnitDescription || "",
+
+        ContactNo: item.mobileNo || "",
+
+        EmployeeStatus: item.employeeStatus || "",
+
+        Email: item.email || "",
+
+        RMId: rmUserId || 0,
+
+        HODId: hodUserId || 0,
+      });
+
+      console.log(hodNameAttr?.attributeTypeUnitDescription);
+
+      const employeeData = {
+        EmployeeCode: item.employeeCode || "",
+        EmployeeName: toTitleCase(item.employeeName || ""),
+        userEmail: toTitleCase(item.email || ""),
+        Division: departmentAttr?.attributeTypeUnitDescription || "",
+        Location: cleanLocationForDisplay(
+          locationAttr?.attributeTypeUnitDescription || "",
+        ),
+        RM: item.reportingManagerName || "",
+        HOD: hodNameAttr?.attributeTypeUnitDescription || "",
+        ContactNo: item.mobileNo || "",
+        EmployeeStatus: item.employeeStatus || "",
+        Email: item.email || "",
+        RMId: rmUserId || 0,
+        HODId: hodUserId || 0,
+      };
+
+      console.log("Before setEmployee:", employeeData);
+
+      setEmployee(employeeData);
+      // console.log(employee)
+
+      // ✅ Approvers
+      const userApprovers = [rmUserId, hodUserId].filter(
+        (id): id is number => !!id,
+      );
+
+      const uniqueApprovers = userApprovers.filter(
+        (value, index, self) => self.indexOf(value) === index,
+      );
+
+      // setApprovers(uniqueApprovers);
+
+      // ✅ Build Approval Flow
+      // buildApprovalFlow(
+      //     {
+      //         RMId: rmUserId,
+      //         HODId: hodUserId,
+      //         RM: item.reportingManagerName || "",
+      //         HOD: HODName?.attributeTypeUnitDescription || ""
+      //     },
+      //     paymentType
+      // );
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  // const getLoggedInUser = async () => {
+  //   try {
+  //     // get logged in user
+  //     debugger;
+  //     const currentUser = await sp.web.currentUser();
+
+  //     const email = currentUser.Email;
+
+  //     const user = await sp.web.lists
+  //       .getByTitle("EmployeeMaster")
+  //       .items.select(
+  //         "EmployeeCode",
+  //         "EmployeeName",
+  //         "Division",
+  //         "Location",
+  //         "EmployeeEmail",
+  //         "ReportingManager/Title",
+  //         "HOD/Title",
+  //         "ContactNo",
+  //         "EmployeeStatus",
+  //       )
+  //       .expand("ReportingManager", "HOD")
+  //       .filter(`EmployeeEmail eq '${email}'`)
+  //       .top(1)();
+
+  //     if (user.length > 0) {
+  //       setEmployee(user[0]);
+  //     }
+
+  //     console.log(user);
+  //   } catch (error) {
+  //     console.log("Error fetching user:", error);
+  //     alert(error);
+  //   }
+  // };
   React.useEffect(() => {
-    void getLoggedInUser();
+    void getuserData();
   }, []);
 
   const downloadTemplate = () => {
@@ -533,15 +794,13 @@ export default function UploadAccrual() {
   //   }
 
   //     debugger;
-    
+
   //   // ✅ Save VALID rows
   //   try {
 
-      
   //     for (const item of validRows) {
   //       await sp.web.lists.getByTitle("AccrualSheetList").items.add(item);
 
-        
   //     }
   //   } catch (error) {
   //     console.log("Save error:", error);
@@ -578,200 +837,190 @@ export default function UploadAccrual() {
   // };
 
   const submitData = async () => {
-  if (excelData.length === 0) {
-    alert("No data to submit");
-    return;
-  }
+    if (excelData.length === 0) {
+      alert("No data to submit");
+      return;
+    }
 
-  const getMonthNumber = (monthName: string) => {
-    const months: any = {
-      january: 0,
-      february: 1,
-      march: 2,
-      april: 3,
-      may: 4,
-      june: 5,
-      july: 6,
-      august: 7,
-      september: 8,
-      october: 9,
-      november: 10,
-      december: 11,
+    const getMonthNumber = (monthName: string) => {
+      const months: any = {
+        january: 0,
+        february: 1,
+        march: 2,
+        april: 3,
+        may: 4,
+        june: 5,
+        july: 6,
+        august: 7,
+        september: 8,
+        october: 9,
+        november: 10,
+        december: 11,
+      };
+
+      return months[monthName.trim().toLowerCase()];
     };
 
-    return months[monthName.trim().toLowerCase()];
-  };
+    const capitalizeMonth = (month: string) => {
+      const m = month.trim().toLowerCase();
+      return m.charAt(0).toUpperCase() + m.slice(1);
+    };
 
-  const capitalizeMonth = (month: string) => {
-    const m = month.trim().toLowerCase();
-    return m.charAt(0).toUpperCase() + m.slice(1);
-  };
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    const currentDate = today.getDate();
 
-  const today = new Date();
-  const currentMonth = today.getMonth();
-  const currentDate = today.getDate();
+    let errorList: any[] = [];
+    let validRows: any[] = [];
 
-  let errorList: any[] = [];
-  let validRows: any[] = [];
+    for (let i = 0; i < excelData.length; i++) {
+      const row = excelData[i];
+      const rowNumber = i + 2;
 
-  for (let i = 0; i < excelData.length; i++) {
-    const row = excelData[i];
-    const rowNumber = i + 2;
+      const username = String(row["UserName "] || "").trim();
+      const amount = Number(row["Amount "] || 0);
 
-    const username = String(row["UserName "] || "").trim();
-    const amount = Number(row["Amount "] || 0);
+      const expenseMonthRaw = String(row["Expense Month "] || "");
+      const expenseMonthStr = capitalizeMonth(expenseMonthRaw);
 
-    const expenseMonthRaw = String(row["Expense Month "] || "");
-    const expenseMonthStr = capitalizeMonth(expenseMonthRaw);
+      const expMonth = getMonthNumber(expenseMonthStr);
 
-    const expMonth = getMonthNumber(expenseMonthStr);
+      let rowErrors: string[] = [];
 
-    let rowErrors: string[] = [];
-
-    // Required Validation
-    for (const col of requiredColumns) {
-      if (!row[col] || row[col].toString().trim() === "") {
-        rowErrors.push(`${col} is required`);
-      }
-    }
-
-    // Amount Validation
-    if (isNaN(amount)) {
-      rowErrors.push("Amount must be numeric");
-    }
-
-    if (amount < 0) {
-      rowErrors.push("Amount cannot be negative");
-    }
-
-    // Month Validation
-    let isValidMonth = false;
-
-    if (expMonth !== undefined) {
-      if (expMonth === currentMonth) {
-        isValidMonth = true;
+      // Required Validation
+      for (const col of requiredColumns) {
+        if (!row[col] || row[col].toString().trim() === "") {
+          rowErrors.push(`${col} is required`);
+        }
       }
 
-      const prevMonth =
-        currentMonth === 0 ? 11 : currentMonth - 1;
-
-      if (expMonth === prevMonth && currentDate <= 5) {
-        isValidMonth = true;
+      // Amount Validation
+      if (isNaN(amount)) {
+        rowErrors.push("Amount must be numeric");
       }
 
-      if (expMonth > currentMonth) {
-        isValidMonth = true;
+      if (amount < 0) {
+        rowErrors.push("Amount cannot be negative");
       }
-    }
 
-    if (!isValidMonth) {
-      rowErrors.push(
-        "Invalid Expense Month (past month not allowed)"
-      );
-    }
+      // Month Validation
+      let isValidMonth = false;
 
-    if (rowErrors.length > 0) {
-      errorList.push({
-        row: rowNumber,
-        data: row,
-        errors: rowErrors,
-      });
-    } else {
-      validRows.push({
-        Title: username,
-        Username: username,
-        Department: String(row["Department "] || ""),
-        VendorName: String(row["Vendor Name"] || ""),
-        VendorCode: String(row["Vendor Code "] || ""),
-        PONumber: String(row["PO Number"] || ""),
-        GLCode: String(row["GL Code "] || ""),
-        GLDescription: String(row["GL Description "] || ""),
-        EmployeeCostCenter: String(
-          row["Employee Cost Center "] || ""
-        ),
-        EmployeeCostCenterName: String(
-          row["Employee Cost Center Name "] || ""
-        ),
-        Amount: amount,
-        ExpenseMonth: expenseMonthStr,
-        Remarks: String(row["Remarks (if any)"] || ""),
-        Status: "Pending",
-      });
-    }
-  }
+      if (expMonth !== undefined) {
+        if (expMonth === currentMonth) {
+          isValidMonth = true;
+        }
 
-  try {
-    const displayData: any[] = [];
+        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
 
-    // For duplicate check inside Excel
-    const duplicateKeys = new Set<string>();
+        if (expMonth === prevMonth && currentDate <= 5) {
+          isValidMonth = true;
+        }
 
-    for (const item of validRows) {
+        if (expMonth > currentMonth) {
+          isValidMonth = true;
+        }
+      }
 
-      const key =
-        `${item.Username}-${item.VendorCode}-${item.PONumber}`;
+      if (!isValidMonth) {
+        rowErrors.push("Invalid Expense Month (past month not allowed)");
+      }
 
-      let isDuplicate = false;
-
-      // Duplicate in current Excel
-      if (duplicateKeys.has(key)) {
-        isDuplicate = true;
+      if (rowErrors.length > 0) {
+        errorList.push({
+          row: rowNumber,
+          data: row,
+          errors: rowErrors,
+        });
       } else {
-        duplicateKeys.add(key);
+        validRows.push({
+          Title: username,
+          Username: username,
+          Department: String(row["Department "] || ""),
+          VendorName: String(row["Vendor Name"] || ""),
+          VendorCode: String(row["Vendor Code "] || ""),
+          PONumber: String(row["PO Number"] || ""),
+          GLCode: String(row["GL Code "] || ""),
+          GLDescription: String(row["GL Description "] || ""),
+          EmployeeCostCenter: String(row["Employee Cost Center "] || ""),
+          EmployeeCostCenterName: String(
+            row["Employee Cost Center Name "] || "",
+          ),
+          Amount: amount,
+          ExpenseMonth: expenseMonthStr,
+          Remarks: String(row["Remarks (if any)"] || ""),
+          Status: "Pending",
+        });
       }
+    }
 
-      // Duplicate in SharePoint List
-      const existingItems = await sp.web.lists
-        .getByTitle("AccrualSheetList")
-        .items
-        .filter(
-          `Username eq '${item.Username.replace(/'/g, "''")}'
+    try {
+      const displayData: any[] = [];
+
+      // For duplicate check inside Excel
+      const duplicateKeys = new Set<string>();
+
+      for (const item of validRows) {
+        const key = `${item.Username}-${item.VendorCode}-${item.PONumber}`;
+
+        let isDuplicate = false;
+
+        // Duplicate in current Excel
+        if (duplicateKeys.has(key)) {
+          isDuplicate = true;
+        } else {
+          duplicateKeys.add(key);
+        }
+
+        // Duplicate in SharePoint List
+        const existingItems = await sp.web.lists
+          .getByTitle("AccrualSheetList")
+          .items.filter(
+            `Username eq '${item.Username.replace(/'/g, "''")}'
           and VendorCode eq '${item.VendorCode.replace(/'/g, "''")}'
-          and PONumber eq '${item.PONumber.replace(/'/g, "''")}'`
-        )();
+          and PONumber eq '${item.PONumber.replace(/'/g, "''")}'`,
+          )();
 
-      if (existingItems.length > 0) {
-        isDuplicate = true;
+        if (existingItems.length > 0) {
+          isDuplicate = true;
+        }
+
+        // Save record
+        await sp.web.lists.getByTitle("AccrualSheetList").items.add(item);
+
+        displayData.push({
+          ...item,
+          isDuplicate,
+        });
       }
 
-      // Save record
-      await sp.web.lists
-        .getByTitle("AccrualSheetList")
-        .items.add(item);
+      console.log("Submitted Data", displayData);
 
-      displayData.push({
-        ...item,
-        isDuplicate,
-      });
+      setSubmittedData(displayData);
+
+      setErrors(errorList);
+
+      if (validRows.length > 0 && errorList.length > 0) {
+        alert(
+          `✅ ${validRows.length} records saved\n❌ ${errorList.length} records failed`,
+        );
+      } else if (validRows.length > 0) {
+        alert("All records saved successfully ✅");
+      } else {
+        alert("No valid data to save ❌");
+      }
+
+      setExcelData([]);
+      setFile(null);
+    } catch (error) {
+      console.log("Save Error", error);
+      alert("Error saving records");
     }
-
-    console.log("Submitted Data", displayData);
-
-    setSubmittedData(displayData);
-
-    setErrors(errorList);
-
-    if (validRows.length > 0 && errorList.length > 0) {
-      alert(
-        `✅ ${validRows.length} records saved\n❌ ${errorList.length} records failed`
-      );
-    } else if (validRows.length > 0) {
-      alert("All records saved successfully ✅");
-    } else {
-      alert("No valid data to save ❌");
-    }
-
-    setExcelData([]);
-    setFile(null);
-  } catch (error) {
-    console.log("Save Error", error);
-    alert("Error saving records");
-  }
-};
+  };
   const handleExit = () => {
     //https://isriglobal.sharepoint.com/sites/SonaFinance/_layouts/workbench.aspx
-    window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
-    //window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
+   // window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
+    window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
   };
   const exitPage1 = async () => {
     // setExcelData([]);
@@ -918,7 +1167,7 @@ export default function UploadAccrual() {
                 Employee Email{" "}
               </label>
               <input
-                value={employee.EmployeeEmail || ""}
+                value={employee.Email || ""}
                 className="form-control readonly"
               />
             </div>
@@ -967,7 +1216,7 @@ export default function UploadAccrual() {
                 RM
               </label>
               <input
-                value={employee.ReportingManager?.Title || ""}
+                value={employee.RM || ""}
                 className="form-control readonly"
               />
             </div>
@@ -976,7 +1225,7 @@ export default function UploadAccrual() {
                 HOD
               </label>
               <input
-                value={employee.HOD?.Title || ""}
+                value={employee.HOD|| ""}
                 className="form-control readonly"
               />
             </div>
@@ -1207,93 +1456,89 @@ export default function UploadAccrual() {
         </button>
       )}
 
-    {submittedData.length > 0 && (
-  <div style={{ marginTop: "20px" }}>
-    <h3>Submitted Records</h3>
+      {submittedData.length > 0 && (
+        <div style={{ marginTop: "20px" }}>
+          <h3>Submitted Records</h3>
 
-    <table className="table table-bordered">
-      <thead>
-        <tr>
-          <th>User</th>
-          <th>Vendor</th>
-          <th>PO Number</th>
-          <th>Amount</th>
-          <th>Month</th>
-          <th>Status</th>
-        </tr>
-      </thead>
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Vendor</th>
+                <th>PO Number</th>
+                <th>Amount</th>
+                <th>Month</th>
+                <th>Status</th>
+              </tr>
+            </thead>
 
-      <tbody>
-        {submittedData.map((row, index) => (
-          <tr
-            key={index}
-            style={{
-              backgroundColor: row.isDuplicate
-                ? "#ffe6e6"
-                : "white",
-            }}
-          >
-            <td
-              style={{
-                color: row.isDuplicate ? "red" : "black",
-                fontWeight: row.isDuplicate ? "bold" : "normal",
-              }}
-            >
-              {row.Username}
-            </td>
+            <tbody>
+              {submittedData.map((row, index) => (
+                <tr
+                  key={index}
+                  style={{
+                    backgroundColor: row.isDuplicate ? "#ffe6e6" : "white",
+                  }}
+                >
+                  <td
+                    style={{
+                      color: row.isDuplicate ? "red" : "black",
+                      fontWeight: row.isDuplicate ? "bold" : "normal",
+                    }}
+                  >
+                    {row.Username}
+                  </td>
 
-            <td
-              style={{
-                color: row.isDuplicate ? "red" : "black",
-                fontWeight: row.isDuplicate ? "bold" : "normal",
-              }}
-            >
-              {row.VendorName}
-            </td>
+                  <td
+                    style={{
+                      color: row.isDuplicate ? "red" : "black",
+                      fontWeight: row.isDuplicate ? "bold" : "normal",
+                    }}
+                  >
+                    {row.VendorName}
+                  </td>
 
-            <td
-              style={{
-                color: row.isDuplicate ? "red" : "black",
-                fontWeight: row.isDuplicate ? "bold" : "normal",
-              }}
-            >
-              {row.PONumber}
-            </td>
+                  <td
+                    style={{
+                      color: row.isDuplicate ? "red" : "black",
+                      fontWeight: row.isDuplicate ? "bold" : "normal",
+                    }}
+                  >
+                    {row.PONumber}
+                  </td>
 
-            <td
-              style={{
-                color: row.isDuplicate ? "red" : "black",
-                fontWeight: row.isDuplicate ? "bold" : "normal",
-              }}
-            >
-              {row.Amount}
-            </td>
+                  <td
+                    style={{
+                      color: row.isDuplicate ? "red" : "black",
+                      fontWeight: row.isDuplicate ? "bold" : "normal",
+                    }}
+                  >
+                    {row.Amount}
+                  </td>
 
-            <td
-              style={{
-                color: row.isDuplicate ? "red" : "black",
-                fontWeight: row.isDuplicate ? "bold" : "normal",
-              }}
-            >
-              {row.ExpenseMonth}
-            </td>
+                  <td
+                    style={{
+                      color: row.isDuplicate ? "red" : "black",
+                      fontWeight: row.isDuplicate ? "bold" : "normal",
+                    }}
+                  >
+                    {row.ExpenseMonth}
+                  </td>
 
-            <td
-              style={{
-                color: row.isDuplicate ? "red" : "green",
-                fontWeight: "bold",
-              }}
-            >
-              {row.isDuplicate
-                ? "Duplicate Record"
-                : "New Record"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-)}
+                  <td
+                    style={{
+                      color: row.isDuplicate ? "red" : "green",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {row.isDuplicate ? "Duplicate Record" : "New Record"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div
         style={{
           display: "flex",

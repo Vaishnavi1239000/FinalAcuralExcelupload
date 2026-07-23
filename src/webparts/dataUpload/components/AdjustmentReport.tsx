@@ -63,8 +63,8 @@ export default function AdjustmentReport() {
   //const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const handleExit = () => {
-    window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
-    //window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
+    //window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
+    window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
   };
 
   const searchData = async () => {

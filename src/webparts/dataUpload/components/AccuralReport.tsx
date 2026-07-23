@@ -111,8 +111,10 @@ export default function AccuralReport() {
     }
   };
   const handleExit = () => {
-    //https://isriglobal.sharepoint.com/sites/SonaFinance/SitePages/Accuralsheet.aspx
-    window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
+    
+   // window.location.href = `${window.location.origin}/sites/SonaFinance/SitePages/Accuralsheet.aspx`;
+    window.location.href = `${window.location.origin}/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
+    //https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx
     // window.location.href = `https://sonacomstargroup.sharepoint.com/sites/RLY_Finance_UAT/SitePages/Accuralsheet.aspx`;
   };
   const searchData = async () => {

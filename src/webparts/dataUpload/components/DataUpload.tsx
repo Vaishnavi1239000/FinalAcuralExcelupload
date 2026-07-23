@@ -182,9 +182,9 @@ export default function AccrualSheet(props: IDataUploadProps) {
     return <ManageAccess {...props} />;
   }
  
-  if (page === "upload") {
-    return <UploadAccrual />;
-  }
+ if (page === "upload") {
+  return <UploadAccrual {...props} />;
+}
   if (page === "report") {
     return <AccuralReport />;
   }
