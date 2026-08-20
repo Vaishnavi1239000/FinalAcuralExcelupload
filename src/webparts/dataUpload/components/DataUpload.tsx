@@ -237,7 +237,8 @@ export default function AccrualSheet(props: IDataUploadProps) {
               </div>
             )}
 
-            <div className="infoCard" onClick={() => setPage("report1")}>
+           {isPerformer && (
+ <div className="infoCard" onClick={() => setPage("report1")}>
               <div className="cardContent">
                 <div className='cardalin'>
                   <span className='boximage'>
@@ -246,9 +247,9 @@ export default function AccrualSheet(props: IDataUploadProps) {
                   <h4>Adjustment Report</h4>
                 </div>
               </div>
-            </div>
+            </div>)}
 
-            <div className="infoCard" onClick={() => setPage("report")}>
+            {canUpload && ( <div className="infoCard" onClick={() => setPage("report")}>
               <div className="cardContent">
                 <div className='cardalin'>
                   <span className='boximage'>
@@ -257,9 +258,10 @@ export default function AccrualSheet(props: IDataUploadProps) {
                   <h4>Accrual Report</h4>
                 </div>
               </div>
-            </div>
+            </div>)}
 
-             <div className="infoCard" onClick={() => setPage("Freezedreport")}>
+            {isPerformer && (
+ <div className="infoCard" onClick={() => setPage("Freezedreport")}>
               <div className="cardContent">
                 <div className='cardalin'>
                   <span className='boximage'>
@@ -268,9 +270,9 @@ export default function AccrualSheet(props: IDataUploadProps) {
                   <h4>freezed approval report</h4>
                 </div>
               </div>
-            </div>
+            </div>)}
 
-            {isPerformer && (
+            {hasManageAccess && (
               <div className="infoCard" onClick={() => setPage("Clouser")}>
                 <div className="cardContent">
                   <div className='cardalin'>
